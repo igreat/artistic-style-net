@@ -1,9 +1,9 @@
 # TODO: Make the code more modularized (split functionality over files where possible)
-# TODO: Implement it with VGG networks or allow
-#  functionality to switch between networks more easily
+# TODO: Make a video rendering functionality after cleaning up code
 
 import torch
-from torchvision.models import resnet50
+from torchvision.models import vgg19
+from torchvision.models.feature_extraction import get_graph_node_names
 from torchvision.models.feature_extraction import create_feature_extractor
 from torchvision import transforms
 import torch.nn as nn
@@ -31,24 +31,27 @@ def get_gram_matrix(featmaps):
 
 
 # # loading pretrained model
-model = resnet50(pretrained=True).eval().to(device)
+model = vgg19(pretrained=True).eval().to(device)
+# print(model)
+# print(get_graph_node_names(model))
 model.requires_grad = False
-style_nodes = ["layer1", "layer2", "layer3", "layer4"]
+style_nodes = ["features.0", "features.5", "features.10", "features.19", "features.28"]
 
-# setting up feature extractors
+# # setting up feature extractors
 style_feature_extractor = create_feature_extractor(model, return_nodes=style_nodes).to(device)
-content_feature_extractor = create_feature_extractor(model, return_nodes=["layer3"]).to(device)
+content_feature_extractor = create_feature_extractor(model, return_nodes=["features.21"]).to(device)
 
 
 # loading test images
 night = Image.open("images/night.jpg")
 lion = Image.open("images/lion.jpg")
 
-image_size = 512 # make sure both images have the same dimensions
+image_size = 512  # make sure both images have the same dimensions
 convert_tensor = transforms.Compose([
     transforms.ToTensor(),
     transforms.Resize((image_size, image_size))
 ])
+
 
 night = convert_tensor(night).view(1, 3, image_size, image_size).to(device)
 lion = convert_tensor(lion).view(1, 3, image_size, image_size).to(device)
