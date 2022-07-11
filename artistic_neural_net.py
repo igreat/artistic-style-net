@@ -1,14 +1,10 @@
 # TODO: Make a video rendering functionality after cleaning up code
 # TODO: Perhaps allow configuration through a dictionary passed to the main function
-# TODO: Replace max pooling with average pooling with perhaps
-#       trying to have more control over feature extraction
-#       (writing out the entire VGG19 network on a separate file)
 # TODO: Implement total viariation loss to improve smoothness
 
 from utils import *
+from models import VGG19
 import torch.optim as optim
-from torchvision.models import vgg19, VGG19_Weights
-from torchvision.models.feature_extraction import create_feature_extractor
 
 
 def artistic_neural_net():
@@ -18,30 +14,23 @@ def artistic_neural_net():
 
     print(f"Using {device} device")
 
-    # # loading pretrained model
-    model = vgg19(weights=VGG19_Weights.DEFAULT).eval().to(device)
-
-    model.requires_grad = False
-
-    # # setting up feature extractors
-    style_feature_extractor = create_feature_extractor(
-        model, return_nodes=STYLE_NODES_RELU).to(device)
-
-    content_feature_extractor = create_feature_extractor(
-        model, return_nodes=CONTENT_NODES).to(device)
-
-    get_features = get_content_and_style(
-        content_feature_extractor, style_feature_extractor)
     # loading test images
     content_img = prepare_image("images/houses.jpg", 256).to(device)
     style_img = prepare_image("images/night.jpg", 256).to(device)
 
+    # the forward call to this model returns the losses with respect these images
+    model = VGG19(content_img, style_img, device=device)
+
     # initializing the input image to the content image
     # randn works better than just rand for when starting from random noise?
-    gen_image = content_img.clone()
-
-    content_features_target, gram_matrices_target = get_features(
-        content_img, style_img, detach=True)
+    init_image_method = "content"
+    if init_image_method == "content":
+        gen_image = content_img.clone()
+    elif init_image_method == "style":
+        gen_image = style_img.clone()
+    else:  # defaults to a white noise
+        gen_image = transforms.Resize(content_img.shape[2:])(
+            prepare_image("images/white-noise.jpg").to(device))
 
     # setting up for optimization
     content_weight = 1
@@ -51,31 +40,22 @@ def artistic_neural_net():
 
     step_cnt = [0]
     # generating the target image
-    while step_cnt[0] <= 201:
+    while step_cnt[0] <= 250:
 
         def closure():
             optimizer.zero_grad()
-            gen_features_content, gram_matrices_gen = get_features(
-                gen_image, gen_image)
 
-            # getting the total loss
-            l_style = 0
-            l_content = 0
-            # for now, I will let all considered layers contribute equally
-            for layer in gram_matrices_target:
-                l_style += nn.functional.mse_loss(gram_matrices_gen[layer],
-                                                  gram_matrices_target[layer], reduction="mean")
+            content_loss, style_loss = model(gen_image)
 
-            for layer in gen_features_content:
-                l_content += nn.functional.mse_loss(
-                    gen_features_content[layer], content_features_target[layer], reduction="mean")
+            content_loss *= content_weight
+            style_loss *= style_weight
 
             with torch.no_grad():
                 if step_cnt[0] % 50 == 0:
                     print(
-                        f"step {step_cnt[0]} \tcontent loss: {content_weight * l_content} \tstyle loss: {style_weight * l_style}")
+                        f"step {step_cnt[0]} \tcontent loss: {content_loss} \tstyle loss: {style_loss}")
 
-            loss = style_weight * l_style + content_weight * l_content
+            loss = content_loss + style_loss
             loss.backward()
 
             step_cnt[0] += 1

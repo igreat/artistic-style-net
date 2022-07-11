@@ -11,13 +11,27 @@ import matplotlib.pyplot as plt
 VGG_MEAN = torch.tensor([0.485, 0.456, 0.406])
 # choose not to normalize by scaling by making std a tensor of ones
 VGG_STD = torch.tensor([1, 1, 1])
-# the following list is the style conv layers used in paper
-STYLE_NODES_CONV = ["features.0", "features.5",
-                    "features.10", "features.19", "features.28"]
-# I found that relu layers generally converges significatly faster
-STYLE_NODES_RELU = ["features.1", "features.6",
-                    "features.11", "features.20", "features.29"]
-CONTENT_NODES = ["features.22"]
+
+
+class StyleLoss(nn.Module):
+    def __init__(self, target_gram):
+        super(StyleLoss, self).__init__()
+        self.target_gram = get_gram_matrix(target_gram)
+
+    def forward(self, gen_feature):
+        gram = get_gram_matrix(gen_feature)
+        self.loss = nn.functional.mse_loss(gram, self.target_gram)
+        return gen_feature
+
+
+class ContentLoss(nn.Module):
+    def __init__(self, target_feature=None):
+        super(ContentLoss, self).__init__()
+        self.target_feature = target_feature
+
+    def forward(self, gen_feature):
+        self.loss = nn.functional.mse_loss(gen_feature, self.target_feature)
+        return gen_feature
 
 
 def get_gram_matrix(featmaps):
@@ -58,7 +72,7 @@ def prepare_image(path, img_size=256):
         transforms.Resize(img_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=VGG_MEAN, std=VGG_STD),
-        # somehow multipying by 255 makes the results converge faster
+        # somehow multipying by some large constant makes the results converge faster
         transforms.Lambda(lambda x: x.mul_(255.0))
     ])
 
@@ -70,7 +84,7 @@ def display_image(image):
     img = img.to("cpu")
     img = img.squeeze(0)
     # denormalizing
-    img.div_(255.0)
+    img.div_(300.0)
     img *= VGG_STD.view(3, 1, 1)
     img += VGG_MEAN.view(3, 1, 1)
     img = img.permute((1, 2, 0))
