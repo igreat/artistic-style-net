@@ -1,1 +1,5 @@
-I will try to implement the original [mage Style Transfer Using Convolutional Neural Networks](https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/Gatys_Image_Style_Transfer_CVPR_2016_paper.pdf) paper using pytorch, starting tomorrow hopefully.
+# Artistic Nueral Transfer 🖌️🎨🧠
+
+In this repository I implement the paper [A Neural Algorithm of Artistic Style](https://arxiv.org/abs/1508.06576) by Leon A. Gatys, Alexander S. Ecker, and Matthias Bethge.
+
+By using a deep CNN trained on a large dataset, we can extract **content** features and **style** features in order to produce the desired combination.
