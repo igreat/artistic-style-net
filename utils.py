@@ -1,6 +1,7 @@
 # utilities used throughout the project
 
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import save_image
 import torch
@@ -18,26 +19,24 @@ VGG_STD = torch.tensor([1/255, 1/255, 1/255])
 class StyleLoss(nn.Module):
     def __init__(self, target_gram, weight):
         super(StyleLoss, self).__init__()
-        self.target_gram = get_gram_matrix(target_gram)
+        self.target_gram = get_gram_matrix(target_gram).detach()
         self.weight = weight
-        self.criterion = nn.MSELoss()
 
     def forward(self, gen_feature):
         gram_matrix = get_gram_matrix(gen_feature)
-        self.loss = self.weight * self.criterion(gram_matrix, self.target_gram)
+        self.loss = self.weight * F.mse_loss(gram_matrix, self.target_gram)
         return gen_feature
 
 
 class ContentLoss(nn.Module):
     def __init__(self, target_feature, weight):
         super(ContentLoss, self).__init__()
-        self.criterion = nn.MSELoss(reduction="sum")
         self.weight = weight
-        self.target_feature = target_feature
+        self.target_feature = target_feature.detach()
 
     def forward(self, gen_feature):
         self.loss = self.weight * \
-            self.criterion(gen_feature, self.target_feature)
+            F.mse_loss(gen_feature, self.target_feature, reduction="sum")
         return gen_feature
 
 
