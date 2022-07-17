@@ -5,8 +5,10 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torchvision.utils import save_image
 import torch
-from PIL import Image
 import matplotlib.pyplot as plt
+from scipy.linalg import sqrtm
+import numpy as np
+from PIL import Image
 
 
 # Consider making normalization part of the feature extractor in models
@@ -20,11 +22,12 @@ class StyleLoss(nn.Module):
     def __init__(self, target_gram, weight):
         super(StyleLoss, self).__init__()
         self.target_gram = get_gram_matrix(target_gram).detach()
-        self.weight = weight
+        self.weight = weight * 5e-2
 
     def forward(self, gen_feature):
         gram_matrix = get_gram_matrix(gen_feature)
-        self.loss = self.weight * F.mse_loss(gram_matrix, self.target_gram)
+        self.loss = self.weight * \
+            F.mse_loss(gram_matrix, self.target_gram)
         return gen_feature
 
 
@@ -61,36 +64,58 @@ class TVLoss(nn.Module):
         return featmaps
 
 
-def prepare_image(path, img_size=256):
-    img = Image.open(path)
+def match_color(input_img, color_img):
 
-    # maybe remove normalization? because results are not good so far!
+    # returns the input_img but with the same color distribution as color_img
+    _, input_h, input_w = input_img.shape
+    _, color_h, color_w = color_img.shape
+
+    input_img = input_img.to("cpu").view(3, input_h * input_w).numpy()
+    color_img = color_img.to("cpu").view(3, color_h * color_w).numpy()
+
+    cov_input = np.cov(input_img)
+    cov_color = np.cov(color_img)
+
+    A = sqrtm(cov_color) @ np.linalg.inv(sqrtm(cov_input))
+
+    # applying the transformation
+    input_img = A @ (input_img - np.mean(input_img, axis=1).reshape(-1, 1)) + \
+        np.mean(color_img, axis=1).reshape(-1, 1)
+
+    return torch.tensor(input_img.reshape(3, input_h, input_w), dtype=torch.float)
+
+
+def process_image(path, img_size=256, is_color_matched=False, color_img=None):
+
+    image = Image.open(path)
+
     convert_tensor = transforms.Compose([
         transforms.Resize(img_size),
         transforms.ToTensor(),
-        transforms.Normalize(mean=VGG_MEAN, std=VGG_STD),
+        transforms.Normalize(mean=VGG_MEAN, std=VGG_STD)
     ])
 
-    return convert_tensor(img).unsqueeze(0)
+    tensor = convert_tensor(image)
+    if is_color_matched:
+        tensor = match_color(tensor, color_img.squeeze(0))
+
+    return tensor.unsqueeze(0)
+
+
+def deprocess_image(tensor):
+    tensor = tensor.clone().to("cpu")
+    tensor *= VGG_STD.view(3, 1, 1)
+    tensor += VGG_MEAN.view(3, 1, 1)
+    return tensor
 
 
 def display_image(image):
-    img = image.clone()
-    img = img.to("cpu")
-    img = img.squeeze(0)
-    # denormalizing
-    img *= VGG_STD.view(3, 1, 1)
-    img += VGG_MEAN.view(3, 1, 1)
+    img = deprocess_image(image)
     img = img.permute((1, 2, 0))
-    img = img.to("cpu")
     plt.imshow(img)
 
 
 def save_img(gen_img, path="generated images/untitled.png"):
     # saving image
-    img_to_save = gen_img.clone()
-    img_to_save = gen_img.to("cpu").squeeze(0)
-    # denormalizing
-    img_to_save *= VGG_STD.view(3, 1, 1)
-    img_to_save += VGG_MEAN.view(3, 1, 1)
+    img_to_save = deprocess_image(gen_img)
     save_image(img_to_save, path)

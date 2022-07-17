@@ -20,32 +20,31 @@ Here is a portrait of an apple put with different style images.
     <div>
         <img src="images/apples/apple.jpg" width="140px"/>
     </div>
-    </div>
-    <div align="center">
+    <div style="display:inline-block;margin:2px">
         <img src="images/test-images/starry-night.jpg" alt="Starry Night" height="150"/>
         <img src="images/apples/starry-apple.png" height="150px"/>
     </div>
-    <div align="center">
+    <div style="display:inline-block;margin:2px">
         <img src="images/test-images/candy.jpg" height="150"/>
         <img src="images/apples/candy-apple.png" height="150px"/>
-    <div align="center">
+    </div>
+    <div style="display:inline-block;margin:2px">
         <img src="images/test-images/picasso.jpg" height="150"/>
         <img src="images/apples/picasso-apple.png" height="150px"/>
-    </div align="center">
-        <div>
+    </div>
+    <div style="display:inline-block;margin:2px">
         <img src="images/test-images/the-scream.jpg" alt="Starry Night" height="150"/>
         <img src="images/apples/scream-apple.png" height="150px"/>
     </div>
-
 </div>
 
 By using different weights on the style and content images, we can get different results as shown below where the ratios between the weights of the style image and the content image are 1e4, 1e5, 1e6, 1e7 respectively from left to right.
 
 <div align="center">
-    <img src="images/weight-comparisons/compare1to1e4.png" width="160px"/>
-    <img src="images/weight-comparisons/compare1to1e5.png" width="160px"/>
-    <img src="images/weight-comparisons/compare1to1e6.png" width="160px"/>
-    <img src="images/weight-comparisons/compare1to1e7.png" width="160px"/>
+    <img src="images/weight-comparisons/compare1to1e4.png" width="200px"/>
+    <img src="images/weight-comparisons/compare1to1e5.png" width="200px"/>
+    <img src="images/weight-comparisons/compare1to1e6.png" width="200px"/>
+    <img src="images/weight-comparisons/compare1to1e7.png" width="200px"/>
 </div>
 
 ## Installation

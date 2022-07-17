@@ -1,13 +1,13 @@
 # TODO: Make a video rendering functionality
-# TODO: Consider normalizing the weights to add up to 1
 # TODO: Try to make the program work better
 #       for when starting from noise
 
 import argparse
-from utils import prepare_image, save_img, VGG_MEAN
+from utils import process_image, save_img
 import torch
 from models import VGG19
 import torch.optim as optim
+
 
 # consider changing this to be chosen explicitly by user
 device = {torch.has_cuda: "cuda",
@@ -19,15 +19,9 @@ def generate_image(args):
     print(f"Using {device} device")
 
     # loading test images
-    content_img = prepare_image(args.content_image, args.image_size).to(device)
-    style_img = prepare_image(args.style_image, args.image_size).to(device)
-
-    if args.normalize_weights:
-
-        total_weight = args.content_weight + args.style_weight + args.smoothness
-        args.content_weight = args.content_weight / total_weight
-        args.style_weight = args.style_weight / total_weight
-        args.smoothness = args.smoothness / total_weight
+    content_img = process_image(args.content_image, args.image_size).to(device)
+    style_img = process_image(
+        args.style_image, args.image_size, args.maintain_color, content_img).to(device)
 
     # the forward call to this model returns the losses with respect these images
     model = VGG19(content_img, style_img, args.content_weight,
@@ -41,8 +35,7 @@ def generate_image(args):
     elif init_image_method == "style":
         gen_image = style_img.clone()
     elif init_image_method == "noise":
-        gen_image = torch.randn(content_img.shape).mul(1e-3).add(0.5)
-        gen_image -= VGG_MEAN.view(1, 3, 1, 1)
+        gen_image = torch.randn_like(content_img).mul(1e-2)
         gen_image = gen_image.to(device)
 
     # consider experimenting with Adam
@@ -98,14 +91,16 @@ def main():
                         help="the size of the generated image")
     parser.add_argument("--content-weight", type=float, default=1,
                         help="style loss weight")
-    parser.add_argument("--style-weight", type=float, default=1e5,
+    parser.add_argument("--style-weight", type=float, default=1e4,
                         help="style loss weight")
-    parser.add_argument("--smoothness", type=float, default=1e-1,
+    parser.add_argument("--smoothness", type=float, default=1e-4,
                         help="total variation loss weight to make image smoother")
     # consider changing this to a more useful name
     parser.add_argument("--init", default="content",
                         help="initial image to be used",
                         choices=["content", "noise"])
+    parser.add_argument("--maintain-color", action="store_true",
+                        help="include to maintain the original color of the content image")
     parser.add_argument("--pooling", default="max",
                         help="the pooling used in the network",
                         choices=["max", "avg"])
@@ -120,8 +115,6 @@ def main():
                         default=["relu1_1", "relu2_1",
                                  "relu3_1", "relu4_1", "relu5_1"],
                         help="specify the style layers, space separated")
-    parser.add_argument("--normalize-weights", action="store_true",
-                        help="include to normalize weights to add up to 1")
     args = parser.parse_args()
     generate_image(args)
 
