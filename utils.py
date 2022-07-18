@@ -3,19 +3,17 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms
-from torchvision.utils import save_image
 import torch
 import matplotlib.pyplot as plt
 from scipy.linalg import sqrtm
 import numpy as np
-from PIL import Image
 
 
 # Consider making normalization part of the feature extractor in models
 # CONSTANTS
 VGG_MEAN = torch.tensor([0.485, 0.456, 0.406])
 # this is not really the vgg std but a way to scale the inputs as part of the normalization
-VGG_STD = torch.tensor([1/255, 1/255, 1/255])
+VGG_STD = torch.tensor([1 / 255, 1 / 255, 1 / 255])
 
 
 class StyleLoss(nn.Module):
@@ -26,8 +24,7 @@ class StyleLoss(nn.Module):
 
     def forward(self, gen_feature):
         gram_matrix = get_gram_matrix(gen_feature)
-        self.loss = self.weight * \
-            F.mse_loss(gram_matrix, self.target_gram)
+        self.loss = self.weight * F.mse_loss(gram_matrix, self.target_gram)
         return gen_feature
 
 
@@ -38,8 +35,9 @@ class ContentLoss(nn.Module):
         self.target_feature = target_feature.detach()
 
     def forward(self, gen_feature):
-        self.loss = self.weight * \
-            F.mse_loss(gen_feature, self.target_feature, reduction="sum")
+        self.loss = self.weight * F.mse_loss(
+            gen_feature, self.target_feature, reduction="sum"
+        )
         return gen_feature
 
 
@@ -59,14 +57,44 @@ class TVLoss(nn.Module):
     def forward(self, featmaps):
         self.x_diff = featmaps[:, :, 1:, :] - featmaps[:, :, :-1, :]
         self.y_diff = featmaps[:, :, :, 1:] - featmaps[:, :, :, :-1]
-        self.loss = self.weight * (torch.sum(torch.abs(self.x_diff)) +
-                                   torch.sum(torch.abs(self.y_diff)))
+        self.loss = self.weight * (
+            torch.sum(torch.abs(self.x_diff)) + torch.sum(torch.abs(self.y_diff))
+        )
         return featmaps
 
 
-def match_color(input_img, color_img):
+def rgb_to_yiq(image_rgb):
+    _, h, w = image_rgb.shape
+    # The shape of image_rgb is assumed to be (3, height, width)
+    A = torch.tensor(
+        [
+            [0.29906252, 0.58673031, 0.11420717],
+            [0.59619793, -0.27501215, -0.32118578],
+            [0.21158684, -0.52313197, 0.31154513],
+        ]
+    )
+    rgb = A @ image_rgb.view(3, h * w)
+    return rgb.view(3, h, w)
 
+
+def yiq_to_rgb(image_yiq):
+    # The shape of image_rgb is assumed to be (3, height, width)
+    _, h, w = image_yiq.shape
+    A = torch.tensor([[1, 0.956, 0.619], [1, -0.272, -0.647], [1, -1.106, 1.703]])
+    yiq = A @ image_yiq.view(3, h * w)
+    return yiq.view(3, h, w)
+
+
+def gs_to_rgb(image_gs):
+    # converts from grayscale to rgb
+    # consider other methods
+    image_gs = image_gs.unsqueeze(0)
+    return torch.cat((image_gs, image_gs, image_gs), 0)
+
+
+def match_color(input_img, color_img):
     # returns the input_img but with the same color distribution as color_img
+
     _, input_h, input_w = input_img.shape
     _, color_h, color_w = color_img.shape
 
@@ -79,26 +107,19 @@ def match_color(input_img, color_img):
     A = sqrtm(cov_color) @ np.linalg.inv(sqrtm(cov_input))
 
     # applying the transformation
-    input_img = A @ (input_img - np.mean(input_img, axis=1).reshape(-1, 1)) + \
-        np.mean(color_img, axis=1).reshape(-1, 1)
+    input_img = A @ (input_img - np.mean(input_img, axis=1).reshape(-1, 1)) + np.mean(
+        color_img, axis=1
+    ).reshape(-1, 1)
 
     return torch.tensor(input_img.reshape(3, input_h, input_w), dtype=torch.float)
 
 
-def process_image(path, img_size=256, is_color_matched=False, color_img=None):
+def process_image(image, img_size=256):
 
-    image = Image.open(path)
-
-    convert_tensor = transforms.Compose([
-        transforms.Resize(img_size),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=VGG_MEAN, std=VGG_STD)
-    ])
-
+    convert_tensor = transforms.Compose(
+        [transforms.Resize(img_size), transforms.Normalize(mean=VGG_MEAN, std=VGG_STD)]
+    )
     tensor = convert_tensor(image)
-    if is_color_matched:
-        tensor = match_color(tensor, color_img.squeeze(0))
-
     return tensor.unsqueeze(0)
 
 
@@ -114,8 +135,3 @@ def display_image(image):
     img = img.permute((1, 2, 0))
     plt.imshow(img)
 
-
-def save_img(gen_img, path="generated images/untitled.png"):
-    # saving image
-    img_to_save = deprocess_image(gen_img)
-    save_image(img_to_save, path)
