@@ -61,11 +61,11 @@ The effects of TV regularization for when starting from the content image (which
 You need to first install miniconda. Once you have miniconda installed, all you need to do is download the project file, then navigate the the project file in the terminal, then put the following command.
 
 ```
-% conda env create
+conda env create
 ```
 Now every time you want to use this tool, just type 
 ```
-% conda activate artistic-net
+conda activate artistic-net
 ```
 Now you are ready to use the tool as shown in the following section.
 ## Usage
@@ -73,7 +73,7 @@ Now you are ready to use the tool as shown in the following section.
 Here is an example the simplest way to use this program
 
 ```
-% python artistic_neural_net.py --content-image <PATH TO CONTENT IMAGE> --style-image <PATH TO STYLE IMAGE>
+python artistic_neural_net.py --content-image <PATH TO CONTENT IMAGE> --style-image <PATH TO STYLE IMAGE>
 ```
 
 The previous command will generate an image and place it in the same directory as the project file, with all the default hyperparamers.
