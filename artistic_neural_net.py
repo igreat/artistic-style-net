@@ -1,7 +1,4 @@
 # TODO: Make a video rendering functionality
-# TODO: Experiment with clamping input to specific range during optimization
-# TODO: Try to make the program work better
-#       for when starting from noise
 
 import argparse
 import utils
@@ -60,7 +57,7 @@ def generate_image(args):
         # doesn't currently work because content error is spatially dependent
         gen_image = style_img.clone()
     elif init_image_method == "noise":
-        gen_image = torch.randn_like(content_img).mul(1e-2)
+        gen_image = torch.randn_like(content_img)
         gen_image = gen_image.to(device)
 
     # consider experimenting with Adam

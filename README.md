@@ -38,6 +38,14 @@ Here is a portrait of an apple put with different style images.
     </span>
 </div>
 
+## Control and tradeoffs
+There are multiple ways we can manipulate the output given a style and content image, which include:
+- Style weight
+- Content weight
+- TV regularization to improve smoothness
+
+Ideally, I would recommend leaving the content weight at 1 and only changing the style weight, since what matters is their ratio.
+
 By using different weights on the style and content images, we can get different results as shown below where the ratios between the weights of the style image and the content image are 1e4, 1e5, 1e6, 1e7 respectively from left to right.
 
 <div align="center">
@@ -47,8 +55,19 @@ By using different weights on the style and content images, we can get different
     <img src="images/weight-comparisons/compare1to1e7.png" width="200px"/>
 </div>
 
+The effects of TV regularization for when starting from the content image (which is what I recommend) are fairly small from what I've seen, so I won't showcase the differences. A tv weight of 1e-6 to 1e-4 works just fine.
 ## Installation
-Soon to be done
+
+You need to first install miniconda. Once you have miniconda installed, all you need to do is download the project file, then navigate the the project file in the terminal, then put the following command.
+
+```
+% conda env create
+```
+Now every time you want to use this tool, just type 
+```
+% conda activate artistic-net
+```
+Now you are ready to use the tool as shown in the following section.
 ## Usage
 
 Here is an example the simplest way to use this program
