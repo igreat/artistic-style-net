@@ -1,4 +1,5 @@
 # TODO: Make a video rendering functionality
+# TODO: Experiment with clamping input to specific range during optimization
 # TODO: Try to make the program work better
 #       for when starting from noise
 
@@ -49,9 +50,14 @@ def generate_image(args):
 
     # initializing the input image to the content image
     init_image_method = args.init
-    if init_image_method == "content":
+    if args.init_image:
+        # not yet supported for no color transfer
+        gen_image = pil_to_tensor(Image.open(args.init_image)).div(255.0)
+        gen_image = utils.process_image(gen_image).to(device)
+    elif init_image_method == "content":
         gen_image = content_img.clone()
     elif init_image_method == "style":
+        # doesn't currently work because content error is spatially dependent
         gen_image = style_img.clone()
     elif init_image_method == "noise":
         gen_image = torch.randn_like(content_img).mul(1e-2)
@@ -68,7 +74,7 @@ def generate_image(args):
     # generating the target image
     while step_cnt[0] < 1:
 
-        def closure():
+        def optim_step():
             optimizer.zero_grad()
 
             content_losses, style_losses, tv_loss = model(gen_image)
@@ -80,11 +86,10 @@ def generate_image(args):
             for loss in style_losses:
                 style_loss += loss
 
-            with torch.no_grad():
-                if step_cnt[0] % args.disp_iter == 0:
-                    print(
-                        f"step {step_cnt[0]} \tcontent loss: {content_loss} \tstyle loss: {style_loss}"
-                    )
+            if step_cnt[0] % args.disp_iter == 0:
+                print(
+                    f"step {step_cnt[0]} \tcontent loss: {content_loss} \tstyle loss: {style_loss}"
+                )
 
             loss = content_loss + style_loss + tv_loss
             loss.backward()
@@ -92,7 +97,7 @@ def generate_image(args):
             step_cnt[0] += 1
             return loss
 
-        optimizer.step(closure)
+        optimizer.step(optim_step)
 
     gen_image = utils.deprocess_image(gen_image)
 
@@ -124,7 +129,7 @@ def main():
         "--content-weight", type=float, default=1, help="style loss weight"
     )
     parser.add_argument(
-        "--style-weight", type=float, default=1e4, help="style loss weight"
+        "--style-weight", type=float, default=1e3, help="style loss weight"
     )
     parser.add_argument(
         "--smoothness",
@@ -137,7 +142,11 @@ def main():
         "--init",
         default="content",
         help="initial image to be used",
-        choices=["content", "noise"],
+        choices=["content", "noise", "image"],
+    )
+
+    parser.add_argument(
+        "--init-image", default=None, help="specify path to initial image"
     )
     parser.add_argument(
         "--maintain-color",

@@ -20,7 +20,7 @@ class StyleLoss(nn.Module):
     def __init__(self, target_gram, weight):
         super(StyleLoss, self).__init__()
         self.target_gram = get_gram_matrix(target_gram).detach()
-        self.weight = weight * 5e-2
+        self.weight = weight
 
     def forward(self, gen_feature):
         gram_matrix = get_gram_matrix(gen_feature)
@@ -53,7 +53,6 @@ class TVLoss(nn.Module):
         super(TVLoss, self).__init__()
         self.weight = weight
 
-    # consider changing the abs to square
     def forward(self, featmaps):
         self.x_diff = featmaps[:, :, 1:, :] - featmaps[:, :, :-1, :]
         self.y_diff = featmaps[:, :, :, 1:] - featmaps[:, :, :, :-1]

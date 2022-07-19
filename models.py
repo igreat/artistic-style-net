@@ -6,14 +6,21 @@ from utils import StyleLoss, ContentLoss, TVLoss
 
 
 class VGG19(nn.Module):
-
-    def __init__(self, content_img, style_img,
-                 content_weight, style_weight, tv_weight,
-                 pooling, content_layers, style_layers, device="cpu"):
+    def __init__(
+        self,
+        content_img,
+        style_img,
+        content_weight,
+        style_weight,
+        tv_weight,
+        pooling,
+        content_layers,
+        style_layers,
+        device="cpu",
+    ):
 
         super(VGG19, self).__init__()
-        features = vgg19(
-            weights=VGG19_Weights.DEFAULT).features.eval().to(device)
+        features = vgg19(weights=VGG19_Weights.DEFAULT).features.eval().to(device)
         features.requires_grad_(False)
 
         self.content_losses = []
@@ -64,5 +71,8 @@ class VGG19(nn.Module):
         x = self.tv_loss(input)
         x = self.layers(x)
 
-        return [content.loss for content in self.content_losses], \
-            [style.loss for style in self.style_losses], self.tv_loss.loss
+        return (
+            [content.loss for content in self.content_losses],
+            [style.loss for style in self.style_losses],
+            self.tv_loss.loss,
+        )
