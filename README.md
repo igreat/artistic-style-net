@@ -79,8 +79,6 @@ python artistic_neural_net.py --content-image <PATH TO CONTENT IMAGE> --style-im
 The previous command will generate an image and place it in the same directory as the project file, with all the default hyperparamers.
 
 For more customizability, here is a list of all the arguments that can be used.
-
-Soon I will manually provide a usage guide but for now, here is what the help message gives
 ```
 optional arguments:
   -h, --help            show this help message and exit
@@ -110,4 +108,18 @@ optional arguments:
   --style-layers STYLE_LAYERS [STYLE_LAYERS ...]
                         specify the style layers, space separated
 ```
+
+## Monitoring stylization
+
+You can also monitor how your image is changing over many iterations, as well as the style, content and total variation losses.
+
+To do this, simply run the following in a different terminal:
+```
+tensorboard --logdir=runs --samples_per_plugin images={MAX IMAGES}
+```
+You'll be able to see what your image looks like after each 50 iterations.
+
+Here's how it will look like:
+
+<img src="images/tensorboard.gif"/>
 

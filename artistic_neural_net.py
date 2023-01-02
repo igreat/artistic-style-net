@@ -1,22 +1,23 @@
-# TODO: Make a video rendering functionality
-
 import argparse
 import utils
 import torch
-from models import VGG19
+import numpy as np
 import torch.optim as optim
+from models import VGG19
 from PIL import Image
 from torchvision.transforms.functional import pil_to_tensor
 from torchvision.transforms import Resize
 from torchvision.utils import save_image
+from torch.utils.tensorboard import SummaryWriter
+
 
 # consider changing this to be chosen explicitly by user
 device = {torch.has_cuda: "cuda", torch.has_mps: "mps"}.get(True, "cpu")
+print(f"Using {device} device")
 
 
 def generate_image(args):
-
-    print(f"Using {device} device")
+    summary = SummaryWriter()
 
     content_img = pil_to_tensor(Image.open(args.content_image)).div(255.0)
     style_img = pil_to_tensor(Image.open(args.style_image)).div(255.0)
@@ -50,7 +51,7 @@ def generate_image(args):
     if args.init_image:
         # not yet supported for no color transfer
         gen_image = pil_to_tensor(Image.open(args.init_image)).div(255.0)
-        gen_image = utils.process_image(gen_image).to(device)
+        gen_image = utils.process_image(gen_image, args.image_size).to(device)
     elif init_image_method == "content":
         gen_image = content_img.clone()
     elif init_image_method == "style":
@@ -72,6 +73,7 @@ def generate_image(args):
     while step_cnt[0] < 1:
 
         def optim_step():
+
             optimizer.zero_grad()
 
             content_losses, style_losses, tv_loss = model(gen_image)
@@ -88,8 +90,36 @@ def generate_image(args):
                     f"step {step_cnt[0]} \tcontent loss: {content_loss} \tstyle loss: {style_loss}"
                 )
 
+                # preparing and displaying the styled image
+                # deprocess the image
+                result = utils.deprocess_image(gen_image.detach().clone())
+                result = result.clamp(0, 1) * 255
+                result = result.cpu().numpy().astype(np.uint8).squeeze(0)
+                summary.add_image(
+                    "styled_image",
+                    result,
+                    step_cnt[0],
+                )
+
             loss = content_loss + style_loss + tv_loss
             loss.backward()
+
+            # adding losses to tensorboard
+            summary.add_scalar(
+                "losses/content",
+                content_loss.item(),
+                step_cnt[0],
+            )
+            summary.add_scalar(
+                "losses/style",
+                style_loss.item(),
+                step_cnt[0],
+            )
+            summary.add_scalar(
+                "losses/tv",
+                tv_loss.item(),
+                step_cnt[0],
+            )
 
             step_cnt[0] += 1
             return loss
@@ -103,7 +133,7 @@ def generate_image(args):
         gen_image = torch.cat((gen_image.to("cpu"), content_iq), 0)
         gen_image = utils.yiq_to_rgb(gen_image)
 
-    save_image(gen_image, args.save_path)
+    return gen_image
 
 
 def main():
@@ -126,7 +156,7 @@ def main():
         "--content-weight", type=float, default=1, help="style loss weight"
     )
     parser.add_argument(
-        "--style-weight", type=float, default=1e3, help="style loss weight"
+        "--style-weight", type=float, default=1e4, help="style loss weight"
     )
     parser.add_argument(
         "--smoothness",
@@ -141,7 +171,6 @@ def main():
         help="initial image to be used",
         choices=["content", "noise", "image"],
     )
-
     parser.add_argument(
         "--init-image", default=None, help="specify path to initial image"
     )
@@ -178,7 +207,9 @@ def main():
         help="specify the style layers, space separated",
     )
     args = parser.parse_args()
-    generate_image(args)
+
+    image = generate_image(args)
+    save_image(image, args.save_path)
 
 
 if __name__ == "__main__":
