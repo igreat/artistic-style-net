@@ -121,5 +121,7 @@ You'll be able to see what your image looks like after each 50 iterations.
 
 Here's how it will look like:
 
-<img src="images/tensorboard.gif"/>
+<div align="center">
+    <img src="images/tensorboard.gif"/>
+</div>
 
